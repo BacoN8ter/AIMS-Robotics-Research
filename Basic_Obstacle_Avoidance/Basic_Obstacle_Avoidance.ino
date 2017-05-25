@@ -7,7 +7,9 @@ int middle = 5;
 int left = 6;
 int right =7;
 int turn = 45;
+int center = 80;
 int dangerZone = 80; //cm
+int proximityTolerance = 100;
 
 void setup() 
 {
@@ -15,7 +17,7 @@ void setup()
   pinMode(12,INPUT);
   frontSteer.attach(3);
   drive.attach(2);
-  frontSteer.write(90);
+  frontSteer.write(center);
   delay(2000);
 }
 
@@ -23,37 +25,34 @@ void loop()
 {
   Serial.print("middle");
  Serial.println(getSonarDistance(middle));
-  //if something is in the way of the robot
-  if(getSonarDistance(left) < dangerZone || getSonarDistance(right) < dangerZone)
+ 
+  if(getSonarDistance(left) < dangerZone || getSonarDistance(right) < dangerZone)// if something is to the side of the robot
   {
-    if(getSonarDistance(left) > getSonarDistance(right) && (getSonarDistance(right) < 100 || getSonarDistance(left) < 100))//something is closer on the right side
+    if(getSonarDistance(left) > getSonarDistance(right) && (getSonarDistance(right) < proximityTolerance || getSonarDistance(left) < proximityTolerance))//something is closer on the right side
     {
-      frontSteer.write(90-turn); //turn left
-      //frontSteer.write(90+turn);
-      //delay(2000);
+      frontSteer.write(center-turn); //turn left
     }
-    else if(getSonarDistance(left) < getSonarDistance(right) && (getSonarDistance(left) < 100 || getSonarDistance(right) < 100) )// something closer on the left side
+    else if(getSonarDistance(left) < getSonarDistance(right) && (getSonarDistance(left) < proximityTolerance || getSonarDistance(right) < proximityTolerance) )// something closer on the left side
     {
-      frontSteer.write(90+turn);
-      //frontSteer.write(90-turn);
-     // delay(2000);
+      frontSteer.write(center+turn);//turn right
     }
-   
   }
-  else if(getSonarDistance(middle) < dangerZone)
+
+ else if(getSonarDistance(middle) < dangerZone )//if something is in the way of the robot (front)
   {
-    if(getSonarDistance(left) > getSonarDistance(right))//something is closer on the right side
+    if(getSonarDistance(left) > getSonarDistance(right) && (getSonarDistance(right) < proximityTolerance || getSonarDistance(left) < proximityTolerance))//something is closer on the right side
     {
-      frontSteer.write(90-turn); //turn left
+      frontSteer.write(center-turn); //turn left
     }
-    else if(getSonarDistance(left) < getSonarDistance(right) )// something closer on the left side
+    else 
     {
-      frontSteer.write(90+turn);
+      frontSteer.write(center+turn);//turn right
     }
   } 
+  
   else
     {
-      frontSteer.write(90);
+      frontSteer.write(center);
     }
   
   drive.write(102);
