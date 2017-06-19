@@ -7,65 +7,7 @@
 #include <Wire.h>
 #include <Servo.h>
 #include <MINDSi.h>
-LIDARLite myLidarLite;
-Servo drive, frontSteer;
-
-typedef enum
-{
-  Idle,
-  Straight,
-  SideAlarm,
-  FrontAlarm,
-  Stop,
-  Reverse
-}State;
-
-typedef struct
-{
-  int echoPin;
-  int trigPin;
-  double dist;
-  double duration;
-}Sonar;
-
-float getSonarDistance(int sonarPin);
-float getSonarDistance(Sonar sonar);
-Sonar setupSonar(int trigPin, int echoPin);
-
-Sonar leftMid = setupSonar(6,7);
-Sonar rightMid = setupSonar(4,5);
-Sonar mid = setupSonar(8,9);
-const int right = 10;
-const int left = 11;
-
-const int center = 80;//degrees
-float angleKp = 0.9;
-float powerKp = 0.2;
-int dangerZone = 100; //all distance readings are in cm
-int proximityTolerance = 100;
-int angle = center;
-int power = 105;
-int angleError = 0;
-int basePower = 120;
-int powerError =0;
-int powerAdjustment =0;
-//IMU plugged into A4 (SDA) and A5 (SCL)
-
-int prevLeftDist = getSonarDistance(left);
-int prevRightDist = getSonarDistance(right);
-int prevRightMidDist = getSonarDistance(rightMid);
-int prevLeftMidDist = getSonarDistance(leftMid);
-int prevMidDist = getSonarDistance(mid);
-
-int leftDist = prevLeftDist;
-int rightDist = prevRightDist;
-int rightMidDist = prevRightMidDist;
-int leftMidDist = prevLeftMidDist;
-int midDist = prevMidDist;
-State state = Idle;
-
-float angles[3];
-FreeSixIMU sixDOF = FreeSixIMU();
+#include "FSM.h"
 
 void setup() 
 {
@@ -78,23 +20,24 @@ void setup()
   pinMode(10,INPUT);
   pinMode(11,INPUT);
   
-  frontSteer.attach(1);
-  drive.attach(13);
+  frontSteer.attach(13);
+  drive.attach(3);
   
- /* myLidarLite.begin(0, true); // Set configuration to default and I2C to 400 kHz
-  myLidarLite.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
-  myLidarLite.write(0x04, 0b00000100); // Use non-default reference acquisition count
-  myLidarLite.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)*/
+  lidarSteer.attach(12);
+  //Serial.begin(96000);
+  //lidar.begin(0, true); 
+  //lidar.configure(0);
   
   frontSteer.write(center);
   drive.write(90);
+  lidarSteer.write(lidarAngle);
   delay(2000);
 //  sixDOF.init();
 }
 
 
 void loop() {
-
+  
 //  sixDOF.getEuler(angles);//radians
   leftDist = getSonarDistance(left);
   rightDist = getSonarDistance(right);
@@ -113,115 +56,116 @@ void loop() {
       Serial.println("No obstacles detected. Moving forward");
       frontSteer.write(center);
       powerAdjustment = 0;
-      if(midDist < 60)
+      if(getAverage(leftDist, prevLeftDist) < dangerZone || getAverage(rightDist,prevRightDist) < dangerZone ||
+      getAverage(leftMidDist,prevLeftMidDist) < dangerZone || getAverage(rightMidDist,prevRightMidDist) < dangerZone || getAverage(midDist,prevMidDist) < dangerZone)
       {
         state = FrontAlarm;
       }
-      if(getAverage(leftDist, prevLeftDist) < dangerZone || getAverage(rightDist,prevRightDist) < dangerZone ||
-      getAverage(leftMidDist,prevLeftMidDist) < dangerZone || getAverage(rightMidDist,prevRightMidDist) < dangerZone)
-      {
-        state = SideAlarm;
-      }
-      if(midDist < 10)
+      if(getAverage(midDist,prevMidDist) < 10 && midDist != 0)
       {
         state = Stop;
       }
-      break;
-      
-    case SideAlarm:
-      Serial.println("Side collision detected");
-      angleError = getAverage(rightDist,prevRightDist) - getAverage(leftDist,prevLeftDist);
-      angleError = angleError<-45?-45:angleError;
-      angleError = angleError>45?45:angleError;
-      angle = (int)(angleKp * angleError);
-      frontSteer.write(center+angle);
-      
-      //30 degrees off horizontal
-      if(getAverage(leftDist,prevLeftDist) < dangerZone) //change power based on which side is within the dangerZone
-      {
-        powerKp = 0.2;
-        powerError = dangerZone-getAverage(leftMidDist,prevLeftDist) ;
-      }
-      else if(getAverage(rightDist,prevRightDist) < dangerZone)
-      {
-        powerKp = 0.2;
-        powerError = dangerZone-getAverage(rightDist,prevRightDist) ;
-      } 
-      else
-      {
-        state = Straight;
-      }
-      
-      //30 degrees off straight
-      if(getAverage(leftMidDist,prevLeftMidDist) < dangerZone)
-      {
-        powerKp = 0.5;
-        powerError = dangerZone-getAverage(leftMidDist,prevLeftMidDist) ;
-      }
-      else if(getAverage(rightMidDist,prevRightMidDist) < dangerZone)
-      {
-        powerKp = 0.5;
-        powerError = dangerZone-getAverage(rightMidDist,prevRightMidDist) ;
-      }
-      else
-      {
-        state = Straight;
-      }
-      if(getSonarDistance(mid) < 10)
-      {
-        state = Stop;
-      }
-     
       break;
       
     case FrontAlarm:
-      Serial.println("Forward Collision detected");
-      if(getAverage(leftDist,prevLeftDist) > getAverage(rightDist,prevRightDist)) 
-     // (getAverage(getSonarDistance(right),prevRightDist) < proximityTolerance || getAverage(getSonarDistance(left),prevLeftDist) < proximityTolerance))//something is closer on the right side
+      Serial.println("Side collision detected");
+      powerKp = 0.5;
+      if(!proximityIsClear())
       {
-        frontSteer.write(center-45); //turn left
-      }
-      else if(getAverage(leftDist,prevLeftDist) <= getAverage(rightDist,prevRightDist))
-      //(getAverage(getSonarDistance(right),prevRightDist) < proximityTolerance || getAverage(getSonarDistance(left),prevLeftDist) < proximityTolerance))
-      {
-        frontSteer.write(center+45);//turn right
+        //30 degrees off horizontal
+        if(getAverage(leftDist,prevLeftDist) < dangerZone) //change power based on which side is within the dangerZone
+        {
+          powerError = dangerZone-getAverage(leftDist,prevLeftDist);
+          angleError = dangerZone - getAverage(leftDist,prevLeftDist);
+          netAngleError += angleError*cos(0.523599);//get the x value to turn
+          netPowerError += powerError*sin(0.523599);//get the y value to slow down
+        } //30 degrees off straight
+        if(getAverage(leftMidDist,prevLeftMidDist) < dangerZone)
+        {
+          powerError = dangerZone-getAverage(leftMidDist,prevLeftMidDist) ;
+          angleError = dangerZone - getAverage(leftMidDist,prevLeftMidDist);
+          netAngleError += angleError*cos(1.0472);
+          netPowerError += powerError*sin(1.0472);
+        }
+        if(getAverage(rightDist,prevRightDist) < dangerZone)
+        {
+          powerError = dangerZone-getAverage(rightDist,prevRightDist) ;
+          angleError = dangerZone - getAverage(rightDist,prevRightDist);
+          netAngleError += angleError*cos(2.0944);
+          netPowerError += powerError*sin(2.0944);
+        } 
+        if(getAverage(rightMidDist,prevRightMidDist) < dangerZone)
+        {
+          powerError = dangerZone-getAverage(rightMidDist,prevRightMidDist) ;
+          angleError = dangerZone - getAverage(rightMidDist,prevRightMidDist);
+          netAngleError += angleError*cos(2.61799);
+          netPowerError += powerError*sin(2.61799);
+        }
+        if(getAverage(leftDist,prevLeftDist) > getAverage(rightDist,prevRightDist) && getAverage(midDist,prevMidDist) < dangerZone)
+        {
+           //turn left
+          powerError = dangerZone-getAverage(rightMidDist,prevRightMidDist) ;
+          angleError = dangerZone - getAverage(rightMidDist,prevRightMidDist);
+          netAngleError += angleError*cos(0);
+          netPowerError += powerError*sin(1.5708);
+        }
+        if(getAverage(leftDist,prevLeftDist) <= getAverage(rightDist,prevRightDist) && getAverage(midDist,prevMidDist) < dangerZone)
+        {
+          //turn right
+          powerError = dangerZone-getAverage(leftMidDist,prevLeftMidDist) ;
+          angleError = dangerZone - getAverage(leftMidDist,prevLeftMidDist);
+          netAngleError += angleError*cos(3.14159);
+          netPowerError += powerError*sin(1.5708);
+        }
       }
       else
       {
         state = Straight;
       }
+      if(getAverage(midDist,prevMidDist) < 10 && midDist != 0)
+      {
+        state = Stop;
+      }
+      netAngleError = netAngleError<-45?-45:netAngleError;
+      netAngleError = netAngleError>45?45:netAngleError;
+      angle = (int)(angleKp * netAngleError);
+      frontSteer.write(center+angle);
+      netAngleError = 0;
       break;
       
     case Stop:
       Serial.println("Imminent collision. Stopping");
       drive.write(0);
-      delay(1000);
+    //  delay(1000);
       drive.write(90);
-      delay(2000);
-      state = Reverse;
+     delay(2000);
+      //state = Reverse;
+      state = Straight;
       break;
       
     case Reverse:
       Serial.println("Making Space");
       frontSteer.write(center);
       drive.write(70);
-      delay(1000);
+      //delay(1000);
       drive.write(90);
-      delay(2000);    
+      //delay(2000);    
       state = Straight; 
       break;
-    
   }
-    Serial.println(midDist);
-    
-    powerAdjustment = (int)( powerKp * powerError);
-    drive.write(basePower-abs(powerAdjustment));
-    
-    prevLeftDist = leftDist; // old dist = current distance
-    prevRightDist = rightDist;
-    prevRightMidDist = rightMidDist;
-    prevLeftMidDist = leftMidDist;
+  Serial.println(midDist);
+  
+  powerAdjustment = basePower - abs(powerKp*powerError) > 100? (int)( powerKp * powerError):(basePower-90)-10;//minimum speed setting
+  drive.write(basePower-abs(powerAdjustment));
+  powerAdjustment = 0;
+  //turnServo();
+  
+  prevLeftDist = leftDist; // old dist = current distance
+  prevRightDist = rightDist;
+  prevRightMidDist = rightMidDist;
+  prevLeftMidDist = leftMidDist;
 }
+
 Sonar setupSonar(int trigPin, int echoPin)
 {
   Sonar temp;
@@ -249,61 +193,26 @@ float getSonarDistance(Sonar sonar)
   sonar.dist =(sonar.duration/2)/29.1;
   return (float)sonar.dist;
 }
-
-// Read distance. The approach is to poll the status register until the device goes
-// idle after finishing a measurement, send a new measurement command, then read the
-// previous distance data while it is performing the new command.
-int getLidarDistance(bool biasCorrection)
+bool proximityIsClear()
 {
-  byte isBusy = 1;
-  int distance;
-  int loopCount;
-
-  // Poll busy bit in status register until device is idle
-  while(isBusy)
-  {
-    // Read status register
-    Wire.beginTransmission(LIDARLITE_ADDR_DEFAULT);
-    Wire.write(0x01);
-    Wire.endTransmission();
-    Wire.requestFrom(LIDARLITE_ADDR_DEFAULT, 1);
-    isBusy = Wire.read();
-    isBusy = bitRead(isBusy,0); // Take LSB of status register, busy bit
-
-    loopCount++; // Increment loop counter
-    // Stop status register polling if stuck in loop
-    if(loopCount > 9999)
-    {
-      break;
-    }
-  }
-
-  // Send measurement command
-  Wire.beginTransmission(LIDARLITE_ADDR_DEFAULT);
-  Wire.write(0X00); // Prepare write to register 0x00
-  if(biasCorrection == true)
-  {
-    Wire.write(0X04); // Perform measurement with receiver bias correction
-  }
-  else
-  {
-    Wire.write(0X03); // Perform measurement without receiver bias correction
-  }
-  Wire.endTransmission();
-
-  // Immediately read previous distance measurement data. This is valid until the next measurement finishes.
-  // The I2C transaction finishes before new distance measurement data is acquired.
-  // Prepare 2 byte read from registers 0x0f and 0x10
-  Wire.beginTransmission(LIDARLITE_ADDR_DEFAULT);
-  Wire.write(0x8f);
-  Wire.endTransmission();
-
-  // Perform the read and repack the 2 bytes into 16-bit word
-  Wire.requestFrom(LIDARLITE_ADDR_DEFAULT, 2);
-  distance = Wire.read();
-  distance <<= 8;
-  distance |= Wire.read();
-
-  // Return the measured distance
-  return distance;
+      if(getAverage(leftDist,prevLeftDist) < dangerZone || getAverage(leftMidDist,prevLeftMidDist) < dangerZone || 
+      getAverage(rightDist,prevRightDist) < dangerZone || getAverage(rightMidDist,prevRightMidDist) < dangerZone || getAverage(midDist,prevMidDist) < dangerZone) //change power based on which side is within the dangerZone
+      {
+        return false;
+      } 
+      else
+      {
+        return true;
+      }
 }
+void turnServo()
+{
+  if(lidarAngle > 135 || lidarAngle < 45)
+  {
+    lidarSpeed *= -1;
+  }
+  lidarAngle += lidarSpeed;
+  lidarSteer.write(lidarAngle);
+}
+
+
