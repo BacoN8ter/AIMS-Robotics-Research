@@ -16,6 +16,8 @@ typedef struct
   double duration;
 }Sonar;
 
+float getAverage(int a,int b);
+float getMode(int a, int b);
 float getSonarDistance(int sonarPin);
 float getSonarDistance(Sonar sonar);
 Sonar setupSonar(int trigPin, int echoPin);
@@ -24,7 +26,7 @@ void turnServo();
 
 Sonar leftMid = setupSonar(6,7);
 Sonar rightMid = setupSonar(4,5);
-Sonar mid = setupSonar(8,9);
+Sonar mid = setupSonar(9,8);
 const int right = 10;
 const int left = 11;
 
