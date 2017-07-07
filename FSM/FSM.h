@@ -24,18 +24,18 @@ Sonar setupSonar(int trigPin, int echoPin);
 float getLidarDistance();
 void turnServo();
 
-Sonar leftMid = setupSonar(6,7);
-Sonar rightMid = setupSonar(4,5);
-Sonar mid = setupSonar(9,8);
+NewPing leftMid(6,7,1000);
+NewPing rightMid(4,5,1000);
+NewPing mid(9,8,1000);
 const int right = 10;
 const int left = 11;
 
 const int center = 80;//degrees
-float angleKp = 1.5;
-float powerKp = 0.1;
+float angleKp = 1;
+float powerKp =0.5;
 int dangerZone = 100; //all distance readings are in cm
 int proximityTolerance = 100;
-int angle = center;
+int angle = 0;
 int angleError = 0;
 int netAngleError = 0;
 
@@ -43,13 +43,13 @@ int basePower = 110;
 int powerError =0;
 int netPowerError = 0;
 int powerAdjustment =0;
-//IMU plugged into A4 (SDA) and A5 (SCL)
+//lidar plugged into A4 (SDA) and A5 (SCL)
 
 int prevLeftDist = getSonarDistance(left);
 int prevRightDist = getSonarDistance(right);
-int prevRightMidDist = getSonarDistance(rightMid);
-int prevLeftMidDist = getSonarDistance(leftMid);
-int prevMidDist = getSonarDistance(mid);
+int prevRightMidDist = rightMid.ping_cm();
+int prevLeftMidDist = leftMid.ping_cm();
+int prevMidDist = mid.ping_cm();
 
 int leftDist = prevLeftDist;
 int rightDist = prevRightDist;
@@ -64,3 +64,6 @@ int lidarSpeed = 5;
 
 FreeSixIMU sixDOF = FreeSixIMU();
 Servo drive, frontSteer, lidarSteer;
+
+
+

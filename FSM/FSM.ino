@@ -1,3 +1,4 @@
+#include <NewPing.h>
 #include <LIDARLite.h>
 #include <CommunicationUtils.h>
 #include <DebugUtils.h>
@@ -11,21 +12,23 @@
 
 void setup()
 {
-  pinMode(leftMid.trigPin, OUTPUT);
-  pinMode(leftMid.echoPin, INPUT);
-  pinMode(rightMid.trigPin, OUTPUT);
-  pinMode(rightMid.echoPin, INPUT);
-  pinMode(mid.trigPin, OUTPUT);
-  pinMode(mid.echoPin, INPUT);
+  //pinMode(leftMid.trigPin, OUTPUT);
+//  pinMode(leftMid.echoPin, INPUT);
+//  pinMode(rightMid.trigPin, OUTPUT);
+//  pinMode(rightMid.echoPin, INPUT);
+//  pinMode(mid.trigPin, OUTPUT);
+//  pinMode(mid.echoPin, INPUT);
   pinMode(10, INPUT);
   pinMode(11, INPUT);
-  Serial.begin(96000);
+  
+  Serial.begin(9600);
   frontSteer.attach(13);
   drive.attach(3);
 
+  //lidar baud causes twitchyness
   lidarSteer.attach(12);
-  lidar.begin(0, true);
-  lidar.configure(0);
+  //lidar.begin(0, true);
+  //lidar.configure(0);
 
   frontSteer.write(center);
   drive.write(90);
@@ -41,8 +44,8 @@ void loop() {
   leftDist = getSonarDistance(left);
   rightDist = getSonarDistance(right);
   rightMidDist = getSonarDistance(rightMid);
-  leftMidDist = getSonarDistance(leftMid);
-  midDist = getSonarDistance(mid);
+  leftMidDist = getSonarDistance(leftMid);;
+  midDist = getSonarDistance(mid);;
 
   switch (state)
   {
@@ -53,22 +56,22 @@ void loop() {
 
     case Straight:
       Serial.println("No obstacles detected. Moving forward");
-      frontSteer.write(center);
+      //frontSteer.write(center);
       powerAdjustment = 0;
+      
       if (getMode(leftDist, prevLeftDist) < dangerZone || getMode(rightDist, prevRightDist) < dangerZone ||
           getMode(leftMidDist, prevLeftMidDist) < dangerZone || getMode(rightMidDist, prevRightMidDist) < dangerZone || getMode(midDist, prevMidDist) < dangerZone)
       {
         state = FrontAlarm;
       }
-      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
-      {
-        state = Stop;
-      }
+//      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
+//      {
+//        state = Stop;
+//      }
       break;
 
     case FrontAlarm:
       Serial.println("Side collision detected");
-      powerKp = 0.5;
       if (!proximityIsClear())
       {
         //30 degrees off horizontal
@@ -121,22 +124,24 @@ void loop() {
       {
         state = Straight;
       }
-      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
-      {
-        state = Stop;
-      }
+//      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
+//      {
+//        state = Stop;
+//      }
       netAngleError = netAngleError < -45 ? -45 : netAngleError;
       netAngleError = netAngleError > 45 ? 45 : netAngleError;
       angle = (int)(angleKp * netAngleError);
+      //angle < 90 turn to the left (right side triggered)
+      //angle > 90 turn to the right (left side triggered) 
       frontSteer.write(center + angle);
       netAngleError = 0;
       break;
 
     case Stop:
       Serial.println("Imminent collision. Stopping");
-      drive.write(0);
+      //drive.write(0);
       //  delay(1000);
-      drive.write(90);
+    //  drive.write(90);
       //delay(2000);
       //state = Reverse;
       state = Straight;
@@ -152,19 +157,23 @@ void loop() {
       state = Straight;
       break;
   }
-  //  Serial.print("middle: ");
-  //  Serial.println(getMode(midDist,prevMidDist));
-  //  Serial.print("left: ");
-  //  Serial.println(getMode(leftDist,prevLeftDist));
-  //  Serial.print("leftMid: ");
-  //  Serial.println(getMode(leftMidDist,prevMidDist));
-  //  Serial.print("right: ");
-  //  Serial.println(getMode(rightDist,prevRightDist));
-  //  Serial.print("rightMid: ");
-  //  Serial.println(getMode(rightMidDist,prevRightMidDist));
-  Serial.println(lidar.distance());
-  powerAdjustment = basePower - abs(powerKp * powerError) > 100 ? (int)( powerKp * powerError) : (basePower - 90) - 10; //minimum speed setting
-  drive.write(basePower - abs(powerAdjustment));
+ 
+  Serial.print("middle: "); 
+  Serial.println(midDist);
+  Serial.print("left: "); 
+  Serial.println(leftDist);
+  Serial.print("leftMid: "); 
+  Serial.println(leftMidDist);
+  Serial.print("right: "); 
+  Serial.println(rightDist);
+  Serial.print("rightMid: ");
+  Serial.println(rightMidDist);
+  Serial.print("angle: "); 
+  Serial.println(angle);
+  //Serial.println(lidar.distance());
+ 
+  powerAdjustment = basePower - abs(powerKp * powerError) > 100 ? (int)( powerKp * powerError) : 10 ; //minimum speed setting
+  drive.write(basePower); //- abs(powerAdjustment));
   powerAdjustment = 0;
   turnServo();
 
@@ -172,6 +181,8 @@ void loop() {
   prevRightDist = rightDist;
   prevRightMidDist = rightMidDist;
   prevLeftMidDist = leftMidDist;
+  prevMidDist = midDist;
+  delay(10);
 }
 
 Sonar setupSonar(int trigPin, int echoPin)
@@ -202,11 +213,27 @@ float getSonarDistance(Sonar sonar)
   delayMicroseconds(10); // Added this line
   digitalWrite(sonar.trigPin, LOW);
   sonar.duration = pulseIn(sonar.echoPin, HIGH);
-  //Serial.write(test.duration);
-  sonar.dist = (sonar.duration / 2) / 29.1;
-  return (float)sonar.dist;
+ // sonar.dist = (sonar.duration / 2) / 29.1;
+  sonar.dist = (sonar.duration*.034)/2;
+  return (float)(sonar.dist);
 }
 
+float getSonarDistance(NewPing sonar)
+{
+  int tempDist = sonar.ping_cm();
+  for(int i =0;i<100;i++)
+  {
+    if(tempDist == 0)
+    {
+      tempDist = sonar.ping_cm();
+    }
+    else
+    {
+      return tempDist;
+    }
+  }
+  return tempDist;
+}
 bool proximityIsClear()
 {
   if (getAverage(leftDist, prevLeftDist) < dangerZone || getAverage(leftMidDist, prevLeftMidDist) < dangerZone ||
@@ -233,5 +260,8 @@ void turnServo()
   lidarAngle += lidarSpeed;
   lidarSteer.write(lidarAngle);
 }
+
+
+
 
 
