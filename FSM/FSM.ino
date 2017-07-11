@@ -1,4 +1,4 @@
-#include <NewPing.h>
+ #include <NewPing.h>
 #include <LIDARLite.h>
 #include <CommunicationUtils.h>
 #include <DebugUtils.h>
@@ -44,8 +44,8 @@ void loop() {
   leftDist = getSonarDistance(left);
   rightDist = getSonarDistance(right);
   rightMidDist = getSonarDistance(rightMid);
-  leftMidDist = getSonarDistance(leftMid);;
-  midDist = getSonarDistance(mid);;
+  leftMidDist = getSonarDistance(leftMid);
+  midDist = getSonarDistance(mid);
 
   switch (state)
   {
@@ -75,50 +75,87 @@ void loop() {
       if (!proximityIsClear())
       {
         //30 degrees off horizontal
-        if (getMode(leftDist, prevLeftDist) < dangerZone) //change power based on which side is within the dangerZone
+        if (getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
         {
           powerError = dangerZone - getMode(leftDist, prevLeftDist);
           angleError = dangerZone - getMode(leftDist, prevLeftDist);
           netAngleError += angleError * cos(0.523599); //get the x value to turn
           netPowerError += powerError * sin(0.523599); //get the y value to slow down
         } //30 degrees off straight
-        if (getMode(leftMidDist, prevLeftMidDist) < dangerZone)
+        if (getMode(leftMidDist, prevLeftMidDist) < dangerZone && getMode(leftMidDist,prevLeftMidDist) != 0)
         {
           powerError = dangerZone - getMode(leftMidDist, prevLeftMidDist) ;
           angleError = dangerZone - getMode(leftMidDist, prevLeftMidDist);
           netAngleError += angleError * cos(1.0472);
           netPowerError += powerError * sin(1.0472);
         }
-        if (getMode(rightDist, prevRightDist) < dangerZone)
+        if (getMode(rightDist, prevRightDist) < dangerZone && getMode(rightDist,prevRightDist) != 0)
         {
           powerError = dangerZone - getMode(rightDist, prevRightDist) ;
           angleError = dangerZone - getMode(rightDist, prevRightDist);
           netAngleError += angleError * cos(2.0944);
           netPowerError += powerError * sin(2.0944);
         }
-        if (getMode(rightMidDist, prevRightMidDist) < dangerZone)
+        if (getMode(rightMidDist, prevRightMidDist) < dangerZone && getMode(rightMidDist,prevRightMidDist) != 0)
         {
           powerError = dangerZone - getMode(rightMidDist, prevRightMidDist) ;
           angleError = dangerZone - getMode(rightMidDist, prevRightMidDist);
           netAngleError += angleError * cos(2.61799);
           netPowerError += powerError * sin(2.61799);
         }
-        if (getMode(leftDist, prevLeftDist) > getMode(rightDist, prevRightDist) && getMode(midDist, prevMidDist) < dangerZone)
+        if (getMode(midDist, prevMidDist) < dangerZone && getMode(leftMidDist,prevLeftMidDist) != 0 && getMode(rightMidDist,prevRightMidDist) != 0 && getMode(midDist, prevMidDist) != 0)
         {
+          if(compareSonarDist(getMode(leftMidDist, prevLeftMidDist), getMode(rightMidDist, prevRightMidDist)))//if the distances between the two are almost the same
+          {
+            //check the sides and turn to the more favorable one
+              if (getMode(rightDist, prevRightDist) < getMode(leftDist,prevLeftDist) && getMode(rightDist,prevRightDist) != 0 && getMode(leftDist,prevLeftDist) != 0)
+              {
+                powerError = dangerZone - getMode(rightDist, prevRightDist) ;
+                angleError = dangerZone - getMode(rightDist, prevRightDist);
+                netAngleError += angleError * cos(2.0944);
+                netPowerError += powerError * sin(2.0944);
+              }
+              else if(getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
+              {
+                powerError = dangerZone - getMode(leftDist, prevLeftDist);
+                angleError = dangerZone - getMode(leftDist, prevLeftDist);
+                netAngleError += angleError * cos(0.523599); //get the x value to turn
+                netPowerError += powerError * sin(0.523599); //get the y value to slow down
+              }
+          }
+          
+          else//one side is clearly longer more open than the other
+          { 
+            if (getMode(rightDist, prevRightDist) < dangerZone && getMode(rightDist,prevRightDist) != 0)
+            {
+              powerError = dangerZone - getMode(rightDist, prevRightDist) ;
+              angleError = dangerZone - getMode(rightDist, prevRightDist);
+              netAngleError += angleError * cos(2.0944);
+              netPowerError += powerError * sin(2.0944);
+            }
+            if (getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
+            {
+              powerError = dangerZone - getMode(leftDist, prevLeftDist);
+              angleError = dangerZone - getMode(leftDist, prevLeftDist);
+              netAngleError += angleError * cos(0.523599); //get the x value to turn
+              netPowerError += powerError * sin(0.523599); //get the y value to slow down
+            } 
+          }
           //turn left
-          powerError = dangerZone - getMode(rightMidDist, prevRightMidDist) ;
-          angleError = dangerZone - getMode(rightMidDist, prevRightMidDist);
-          netAngleError += angleError * cos(0);
-          netPowerError += powerError * sin(1.5708);
+//          powerError = dangerZone - getMode(rightMidDist, prevRightMidDist) ;
+//          angleError = dangerZone - getMode(rightMidDist, prevRightMidDist);
+//          netAngleError += angleError * cos(3.14159);
+//          netPowerError += powerError * sin(1.5708);
         }
-        if (getMode(leftDist, prevLeftDist) <= getMode(rightDist, prevRightDist) && getMode(midDist, prevMidDist) < dangerZone)
-        {
-          //turn right
-          powerError = dangerZone - getMode(leftMidDist, prevLeftMidDist) ;
-          angleError = dangerZone - getMode(leftMidDist, prevLeftMidDist);
-          netAngleError += angleError * cos(3.14159);
-          netPowerError += powerError * sin(1.5708);
-        }
+//        else if (!compareSonarDist(getMode(leftMidDist, prevLeftMidDist), getMode(rightMidDist, prevRightMidDist)) && getMode(midDist, prevMidDist) < dangerZone && 
+//                 getMode(leftMidDist,prevLeftMidDist) != 0 && getMode(rightMidDist,prevRightMidDist) != 0)
+//        {
+//          //turn right
+//          powerError = dangerZone - getMode(leftMidDist, prevLeftMidDist) ;
+//          angleError = dangerZone - getMode(leftMidDist, prevLeftMidDist);
+//          netAngleError += angleError * cos(0);
+//          netPowerError += powerError * sin(1.5708);
+//        }
       }
       else
       {
@@ -172,7 +209,7 @@ void loop() {
   Serial.println(angle);
   //Serial.println(lidar.distance());
  
-  powerAdjustment = basePower - abs(powerKp * powerError) > 100 ? (int)( powerKp * powerError) : 10 ; //minimum speed setting
+ // powerAdjustment = basePower - abs(powerKp * powerError) > 100 ? (int)( powerKp * powerError) : 10 ; //minimum speed setting
   drive.write(basePower); //- abs(powerAdjustment));
   powerAdjustment = 0;
   turnServo();
@@ -234,6 +271,20 @@ float getSonarDistance(NewPing sonar)
   }
   return tempDist;
 }
+
+
+bool compareSonarDist(float dist1, float dist2)
+{
+  if(abs(dist1-dist2) < sonarThreshold)
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 bool proximityIsClear()
 {
   if (getAverage(leftDist, prevLeftDist) < dangerZone || getAverage(leftMidDist, prevLeftMidDist) < dangerZone ||
@@ -249,11 +300,11 @@ bool proximityIsClear()
 
 void turnServo()
 {
-  if (lidarAngle > 135)
+  if (lidarAngle > 125)
   {
     lidarSpeed = -abs(lidarSpeed);
   }
-  else if (lidarAngle < 45)
+  else if (lidarAngle < 25)
   {
     lidarSpeed = abs(lidarSpeed);
   }

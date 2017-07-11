@@ -20,6 +20,7 @@ float getAverage(int a,int b);
 float getMode(int a, int b);
 float getSonarDistance(int sonarPin);
 float getSonarDistance(Sonar sonar);
+bool compareSonar(float dist1, float dist2);
 Sonar setupSonar(int trigPin, int echoPin);
 float getLidarDistance();
 void turnServo();
@@ -31,7 +32,7 @@ const int right = 10;
 const int left = 11;
 
 const int center = 80;//degrees
-float angleKp = 1;
+float angleKp = 1.25;
 float powerKp =0.5;
 int dangerZone = 100; //all distance readings are in cm
 int proximityTolerance = 100;
@@ -59,9 +60,10 @@ int midDist = prevMidDist;
 State state = Idle;
 
 LIDARLite lidar;
-int lidarAngle=90;
+int lidarAngle=75;
 int lidarSpeed = 5;
 
+const int sonarThreshold = 10;
 FreeSixIMU sixDOF = FreeSixIMU();
 Servo drive, frontSteer, lidarSteer;
 
