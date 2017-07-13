@@ -12,12 +12,6 @@
 
 void setup()
 {
-  //pinMode(leftMid.trigPin, OUTPUT);
-//  pinMode(leftMid.echoPin, INPUT);
-//  pinMode(rightMid.trigPin, OUTPUT);
-//  pinMode(rightMid.echoPin, INPUT);
-//  pinMode(mid.trigPin, OUTPUT);
-//  pinMode(mid.echoPin, INPUT);
   pinMode(10, INPUT);
   pinMode(11, INPUT);
   
@@ -46,6 +40,7 @@ void loop() {
   rightMidDist = getSonarDistance(rightMid);
   leftMidDist = getSonarDistance(leftMid);
   midDist = getSonarDistance(mid);
+  rearDist = getSonarDistance(rear);
 
   switch (state)
   {
@@ -56,7 +51,6 @@ void loop() {
 
     case Straight:
       Serial.println("No obstacles detected. Moving forward");
-      //frontSteer.write(center);
       powerAdjustment = 0;
       
       if (getMode(leftDist, prevLeftDist) < dangerZone || getMode(rightDist, prevRightDist) < dangerZone ||
@@ -64,10 +58,10 @@ void loop() {
       {
         state = FrontAlarm;
       }
-//      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
-//      {
-//        state = Stop;
-//      }
+      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
+      {
+        state = Stop;
+      }
       break;
 
     case FrontAlarm:
@@ -110,14 +104,14 @@ void loop() {
             //check the sides and turn to the more favorable one
               if (getMode(rightDist, prevRightDist) < getMode(leftDist,prevLeftDist) && getMode(rightDist,prevRightDist) != 0 && getMode(leftDist,prevLeftDist) != 0)
               {
-                powerError = dangerZone - getMode(rightDist, prevRightDist) ;
+                powerError = dangerZone - getMode(midDist, prevMidDist) ;
                 angleError = dangerZone - getMode(rightDist, prevRightDist);
                 netAngleError += angleError * cos(2.0944);
                 netPowerError += powerError * sin(2.0944);
               }
               else if(getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
               {
-                powerError = dangerZone - getMode(leftDist, prevLeftDist);
+                powerError = dangerZone - getMode(midDist, prevMidDist);
                 angleError = dangerZone - getMode(leftDist, prevLeftDist);
                 netAngleError += angleError * cos(0.523599); //get the x value to turn
                 netPowerError += powerError * sin(0.523599); //get the y value to slow down
@@ -128,14 +122,14 @@ void loop() {
           { 
             if (getMode(rightDist, prevRightDist) < dangerZone && getMode(rightDist,prevRightDist) != 0)
             {
-              powerError = dangerZone - getMode(rightDist, prevRightDist) ;
+              powerError = dangerZone - getMode(midDist, prevMidDist) ;
               angleError = dangerZone - getMode(rightDist, prevRightDist);
               netAngleError += angleError * cos(2.0944);
               netPowerError += powerError * sin(2.0944);
             }
             if (getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
             {
-              powerError = dangerZone - getMode(leftDist, prevLeftDist);
+              powerError = dangerZone - getMode(midDist, prevMidDist);
               angleError = dangerZone - getMode(leftDist, prevLeftDist);
               netAngleError += angleError * cos(0.523599); //get the x value to turn
               netPowerError += powerError * sin(0.523599); //get the y value to slow down
@@ -161,65 +155,78 @@ void loop() {
       {
         state = Straight;
       }
-//      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
-//      {
-//        state = Stop;
-//      }
+      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
+      {
+        state = Stop;
+      }
       netAngleError = netAngleError < -45 ? -45 : netAngleError;
       netAngleError = netAngleError > 45 ? 45 : netAngleError;
       angle = (int)(angleKp * netAngleError);
       //angle < 90 turn to the left (right side triggered)
       //angle > 90 turn to the right (left side triggered) 
       frontSteer.write(center + angle);
-      netAngleError = 0;
+      
       break;
 
     case Stop:
       Serial.println("Imminent collision. Stopping");
-      //drive.write(0);
-      //  delay(1000);
-    //  drive.write(90);
-      //delay(2000);
-      //state = Reverse;
-      state = Straight;
+      drive.write(0);
+      delay(1000);
+      drive.write(90);
+      delay(2000);
+      state = Reverse;
+      //state = Straight;
       break;
 
     case Reverse:
       Serial.println("Creating Space");
       frontSteer.write(center);
-      drive.write(70);
-      //delay(1000);
+      
+      for(int i =0;i<100;i++)//this is bad should be changed later to be non blocking
+      {
+        drive.write(80);
+        if(getMode(rearDist,prevRearDist) < 50)
+        {
+          break;
+        }
+        delay(10);
+      }
       drive.write(90);
-      //delay(2000);
+      delay(2000);
       state = Straight;
       break;
   }
  
-  Serial.print("middle: "); 
-  Serial.println(midDist);
-  Serial.print("left: "); 
-  Serial.println(leftDist);
-  Serial.print("leftMid: "); 
-  Serial.println(leftMidDist);
-  Serial.print("right: "); 
-  Serial.println(rightDist);
-  Serial.print("rightMid: ");
-  Serial.println(rightMidDist);
-  Serial.print("angle: "); 
-  Serial.println(angle);
+//  Serial.print("middle: "); 
+//  Serial.println(midDist);
+//  Serial.print("left: "); 
+//  Serial.println(leftDist);
+//  Serial.print("leftMid: "); 
+//  Serial.println(leftMidDist);
+//  Serial.print("right: "); 
+//  Serial.println(rightDist);
+//  Serial.print("rightMid: ");
+//  Serial.println(rightMidDist);
+//  Serial.print("angle: "); 
+//  Serial.println(angle);
+  Serial.print("rear: "); 
+  Serial.println(rearDist);
   //Serial.println(lidar.distance());
  
- // powerAdjustment = basePower - abs(powerKp * powerError) > 100 ? (int)( powerKp * powerError) : 10 ; //minimum speed setting
-  drive.write(basePower); //- abs(powerAdjustment));
-  powerAdjustment = 0;
+  powerAdjustment = (basePower - abs(powerKp * powerError)) > 100 ? (int)( powerKp * powerError) : 15 ; //minimum speed setting
+  drive.write(basePower - abs(powerAdjustment));
   turnServo();
-
+  
+  powerAdjustment = 0;
+  netAngleError = 0;
+  angle =0;
+  
   prevLeftDist = leftDist; // old dist = current distance
   prevRightDist = rightDist;
   prevRightMidDist = rightMidDist;
   prevLeftMidDist = leftMidDist;
   prevMidDist = midDist;
-  delay(10);
+  prevRearDist = rearDist;
 }
 
 Sonar setupSonar(int trigPin, int echoPin)
