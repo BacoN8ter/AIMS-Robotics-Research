@@ -64,7 +64,7 @@ State state = Idle;
 
 LIDARLite lidar;
 int lidarAngle=75;
-int lidarSpeed = 5;
+int lidarSpeed = 1;
 
 const int sonarThreshold = 10;
 FreeSixIMU sixDOF = FreeSixIMU();

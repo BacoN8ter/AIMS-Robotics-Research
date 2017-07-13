@@ -15,14 +15,14 @@ void setup()
   pinMode(10, INPUT);
   pinMode(11, INPUT);
   
-  Serial.begin(9600);
+  Serial.begin(115200);
   frontSteer.attach(13);
   drive.attach(3);
 
   //lidar baud causes twitchyness
   lidarSteer.attach(12);
-  //lidar.begin(0, true);
-  //lidar.configure(0);
+  lidar.begin(0, true);
+  lidar.configure(0);
 
   frontSteer.write(center);
   drive.write(90);
@@ -209,9 +209,9 @@ void loop() {
 //  Serial.println(rightMidDist);
 //  Serial.print("angle: "); 
 //  Serial.println(angle);
-  Serial.print("rear: "); 
-  Serial.println(rearDist);
-  //Serial.println(lidar.distance());
+//  Serial.print("rear: ");  <- still needs to be troubleshooted
+//  Serial.println(rearDist);
+  Serial.println(lidar.distance());
  
   powerAdjustment = (basePower - abs(powerKp * powerError)) > 100 ? (int)( powerKp * powerError) : 15 ; //minimum speed setting
   drive.write(basePower - abs(powerAdjustment));
