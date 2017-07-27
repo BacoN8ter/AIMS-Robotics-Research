@@ -1,9 +1,10 @@
-
+#define LIDAR_THRESHOLD 10
 typedef enum
 {
   Idle,
-  Straight,
-  FrontAlarm,
+  ActiveNavigation,
+  ReactiveNavigation,
+  LidarUpdate,
   Stop,
   Reverse
 }State;
@@ -15,6 +16,13 @@ typedef struct
   double dist;
   double duration;
 }Sonar;
+typedef struct
+{
+  int lidarDist;
+  int lidarAngle;
+  int lidarDistY = lidarDist * sin(lidarAngle);
+  int lidarDistX = lidarDist * cos(lidarAngle);
+}LidarValue;
 
 float getAverage(int a,int b);
 float getMode(int a, int b);
@@ -63,9 +71,18 @@ int rearDist = prevRearDist;
 State state = Idle;
 
 LIDARLite lidar;
-int lidarAngle=75;
+LidarValue currentLidarData;
+LidarValue arrayValues;
+int minAngle = 45;
 int lidarSpeed = 1;
+const int sweepDegrees = 90;
+LidarValue lidarArray[sweepDegrees];
+LidarValue farthestLidarValue = lidarArray[0];
+int farthestLidarValueIndex = (int)(sweepDegrees - minAngle)/2;//midpoint
 
+long previousMillis = 0;
+bool leftTrigger = false;
+bool rightTrigger = false;
 const int sonarThreshold = 10;
 FreeSixIMU sixDOF = FreeSixIMU();
 Servo drive, frontSteer, lidarSteer;
