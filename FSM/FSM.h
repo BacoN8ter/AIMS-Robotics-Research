@@ -4,7 +4,6 @@ typedef enum
   Idle,
   ActiveNavigation,
   ReactiveNavigation,
-  LidarUpdate,
   Stop,
   Reverse
 }State;
@@ -20,8 +19,8 @@ typedef struct
 {
   int lidarDist;
   int lidarAngle;
-  int lidarDistY = lidarDist * sin(lidarAngle);
-  int lidarDistX = lidarDist * cos(lidarAngle);
+  int lidarDistY;
+  int lidarDistX;
 }LidarValue;
 
 float getAverage(int a,int b);
@@ -29,7 +28,6 @@ float getMode(int a, int b);
 float getSonarDistance(int sonarPin);
 float getSonarDistance(Sonar sonar);
 bool compareSonar(float dist1, float dist2);
-Sonar setupSonar(int trigPin, int echoPin);
 float getLidarDistance();
 void turnServo();
 

@@ -20,13 +20,13 @@ void setup()
   drive.attach(3);
 
   //lidar baud causes twitchyness
-  lidarSteer.attach(12);
-  lidar.begin(0, true);
-  lidar.configure(0);
+  //lidarSteer.attach(12);
+  //lidar.begin(0, true);
+  //lidar.configure(0);
 
   frontSteer.write(center);
   drive.write(90);
-  lidarSteer.write(currentLidarData.lidarAngle);
+  //lidarSteer.write(currentLidarData.lidarAngle);
   delay(2000);
   //sixDOF.init();
 }
@@ -59,25 +59,28 @@ void loop() {
       {
         state = ReactiveNavigation;
       }
-      
-     //active is untested 
-      else if(farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX > LIDAR_THRESHOLD)
+//     //active is untested 
+    /*  else
       {
-        //the farthest distance is on the right, apply a force on the left
-        //positive error
-        angleError = farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2];//the farther the X distance the more it should correct based on the Y distance. (closer -> more error)
-        netAngleError += angleError * 0.025;//a random constant I came up with that needs to be tuned
-      }
-      else if(farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX < -LIDAR_THRESHOLD)
-      {
-        //negative error
-        angleError = farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2];//the farther the X distance the more it should correct based on the Y distance. (closer -> more error)
-        netAngleError += angleError * 0.025;
-      }
-//      if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
-//      {
-//        state = Stop;
-//      }
+        if(farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX > LIDAR_THRESHOLD)
+        {
+          //the farthest distance is on the right, apply a force on the left
+          //positive error
+          angleError = farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX;//the farther the X distance the more it should correct based on the Y distance. (closer -> more error)
+          netAngleError += angleError * 0.025;//a random constant I came up with that needs to be tuned
+        }
+        else if(farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX < -LIDAR_THRESHOLD)
+        {
+          //negative error
+          angleError = farthestLidarValue.lidarDistX - lidarArray[sizeof(lidarArray)/2].lidarDistX;//the farther the X distance the more it should correct based on the Y distance. (closer -> more error)
+          netAngleError += angleError * 0.025;
+        }
+        if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
+        {
+          state = Stop;
+        }
+      }*/
+
       netAngleError = netAngleError < -45 ? -45 : netAngleError;
       netAngleError = netAngleError > 45 ? 45 : netAngleError;
       angle = (int)(angleKp * netAngleError);
@@ -179,7 +182,7 @@ void loop() {
       }
       if (getMode(midDist, prevMidDist) < 10 && midDist != 0)
       {
-        state = Stop;
+       // state = Stop;
       }
       netAngleError = netAngleError < -45 ? -45 : netAngleError;
       netAngleError = netAngleError > 45 ? 45 : netAngleError;
@@ -187,23 +190,6 @@ void loop() {
       //angle < 90 turn to the left (right side triggered)
       //angle > 90 turn to the right (left side triggered) 
       frontSteer.write(center + angle);
-      break;
-      
-    case LidarUpdate:
-      Serial.println("updating lidar");
-      if(leftTrigger && rightTrigger)
-      {
-        state = ActiveNavigation;
-        previousMillis = currentMillis;
-      }
-      if(currentLidarData.lidarAngle == minAngle+1)
-      {
-        rightTrigger = true;
-      }
-      if(currentLidarData.lidarAngle == minAngle + sweepDegrees-1)
-      {
-        leftTrigger = true;
-      }
       break;
       
     case Stop:
@@ -219,23 +205,16 @@ void loop() {
     case Reverse:
       Serial.println("Creating Space");
       frontSteer.write(center);
+
+      //drive backwards for 100cm or until you see something closer than 10cm
       
-      for(int i =0;i<100;i++)//this is bad should be changed later to be non blocking
-      {
-        drive.write(80);
-        if(getMode(rearDist,prevRearDist) < 50)
-        {
-          break;
-        }
-        delay(10);
-      }
       drive.write(90);
       delay(2000);
       state = ActiveNavigation;
       break;
   }
  
-//  lidarProcess();
+/*  lidarProcess();
   if(currentMillis - previousMillis > 4000 && state != LidarUpdate)
   {
     state = LidarUpdate;
@@ -247,12 +226,24 @@ void loop() {
       drive.write(0);
   }
   else
-  {
+  {*/
     powerAdjustment = (basePower - abs(powerKp * powerError)) > 100 ? (int)( powerKp * powerError) : 15 ; //minimum speed setting
     drive.write(basePower - abs(powerAdjustment));
-  }
-  turnServo();
-  Serial.println(millis());
+  //}
+  
+  //turnServo();
+  //lidarProcess();
+  //Serial.println(farthestLidarValue.lidarDistX);
+  //Serial.println(farthestLidarValue.lidarDist);
+  //Serial.println(currentLidarData.lidarDistX);
+  
+  /*Serial.println(leftDist);
+  Serial.println(rightDist);
+  Serial.println(leftMidDist);
+  Serial.println(rightMidDist);
+  Serial.println(midDist);
+  Serial.println(rearDist);*/
+  
   powerAdjustment = 0;
   netAngleError = 0;
   angle =0;
@@ -263,16 +254,12 @@ void loop() {
   prevLeftMidDist = leftMidDist;
   prevMidDist = midDist;
   prevRearDist = rearDist;
+  //currentLidarData.lidarDist = lidar.distance();
+  //currentLidarData.lidarDistY = abs(currentLidarData.lidarDist * sin(currentLidarData.lidarAngle));
+  //currentLidarData.lidarDistX = currentLidarData.lidarDist * cos(currentLidarData.lidarAngle);
   delay(10);
 }
 
-Sonar setupSonar(int trigPin, int echoPin)
-{
-  Sonar temp;
-  temp.trigPin = trigPin;
-  temp.echoPin = echoPin;
-  return temp;
-}
 float getAverage(int a, int b)
 {
   return (a + b) / 2;
@@ -284,19 +271,6 @@ float getMode(int a, int b)
 float getSonarDistance(int sonarPin)
 {
   return (getPing(sonarPin) * .034) / 2;
-}
-
-float getSonarDistance(Sonar sonar)
-{
-  digitalWrite(sonar.trigPin, LOW);  // Added this line
-  delayMicroseconds(2); // Added this line
-  digitalWrite(sonar.trigPin, HIGH);
-  delayMicroseconds(10); // Added this line
-  digitalWrite(sonar.trigPin, LOW);
-  sonar.duration = pulseIn(sonar.echoPin, HIGH);
- // sonar.dist = (sonar.duration / 2) / 29.1;
-  sonar.dist = (sonar.duration*.034)/2;
-  return (float)(sonar.dist);
 }
 
 float getSonarDistance(NewPing sonar)
@@ -313,6 +287,7 @@ float getSonarDistance(NewPing sonar)
       return tempDist;
     }
   }
+  
   return tempDist;
 }
 
@@ -357,12 +332,17 @@ void turnServo()
 }
 void lidarProcess()
 {
-  lidarArray[currentLidarData.lidarAngle - minAngle] = currentLidarData;//fill the array as it moves in the arc
-  if(lidarArray[currentLidarData.lidarAngle - minAngle].lidarDist > farthestLidarValue.lidarDist)//save the farthest distance
+  if(currentLidarData.lidarAngle > minAngle)
   {
-    farthestLidarValue.lidarDist = lidarArray[currentLidarData.lidarAngle].lidarDist;
-    farthestLidarValue.lidarAngle = lidarArray[currentLidarData.lidarAngle].lidarAngle;
-    farthestLidarValueIndex = currentLidarData.lidarAngle - minAngle;
+    Serial.println("The Lidar is Checking values");
+    Serial.println(currentLidarData.lidarAngle-minAngle);
+    lidarArray[currentLidarData.lidarAngle - minAngle] = currentLidarData;//fill the array as it moves in the arc
+    if(lidarArray[currentLidarData.lidarAngle - minAngle].lidarDistY > farthestLidarValue.lidarDistY)//save the farthest distance
+    {
+      farthestLidarValue.lidarDist = lidarArray[currentLidarData.lidarAngle-minAngle].lidarDist;
+      farthestLidarValue.lidarAngle = lidarArray[currentLidarData.lidarAngle-minAngle].lidarAngle;
+      farthestLidarValueIndex = currentLidarData.lidarAngle - minAngle;
+    }
   }
 }
 
