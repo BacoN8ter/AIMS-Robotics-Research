@@ -23,13 +23,16 @@ typedef struct
   int lidarDistX;
 }LidarValue;
 
-float getAverage(int a,int b);
-float getMode(int a, int b);
-float getSonarDistance(int sonarPin);
+float getAverage(int a,int b);//get the average value of two inputs
+float getMode(int a, int b);//get the mode of two inputs
+float getSonarDistance(int sonarPin);//get the distance from a sonar sensor
 float getSonarDistance(Sonar sonar);
-bool compareSonar(float dist1, float dist2);
-float getLidarDistance();
-void turnServo();
+bool compareSonar(float dist1, float dist2);//comapre two sonar distances 
+float getLidarDistance();//get the distance from a Lidar Sensor
+void turnServo();//turn servo motors
+void updateCurrentSensorValues();//update all current sensor variables to their current values
+void updatePrevSensorValues();//update the previous sensor values 
+void printSensorValues();//display sensor or servo information in serial terminal
 
 NewPing leftMid(6,7,1000);
 NewPing rightMid(4,5,1000);

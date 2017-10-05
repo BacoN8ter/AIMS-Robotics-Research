@@ -12,18 +12,21 @@
 
 void setup()
 {
+  //setup sonar sensors
   pinMode(10, INPUT);
   pinMode(11, INPUT);
-  
+
+  //attach servo motors to appropriate ports
   Serial.begin(115200);
   frontSteer.attach(13);
   drive.attach(3);
 
-  //lidar baud causes twitchyness
+  //attach and configure Lidar Lite 
   //lidarSteer.attach(12);
   //lidar.begin(0, true);
   //lidar.configure(0);
 
+  //Initialize Sensors and Servos
   frontSteer.write(center);
   drive.write(90);
   //lidarSteer.write(currentLidarData.lidarAngle);
@@ -33,23 +36,26 @@ void setup()
 
 
 void loop() {
-
-  //  sixDOF.getEuler(angles);//radians
-  leftDist = getSonarDistance(left);
-  rightDist = getSonarDistance(right);
-  rightMidDist = getSonarDistance(rightMid);
-  leftMidDist = getSonarDistance(leftMid);
-  midDist = getSonarDistance(mid);
-  rearDist = getSonarDistance(rear);
-
+  
+  
+  updateCurrentSensorValues();
   unsigned long currentMillis = millis();
+  
   switch (state)
   {
+    /*
+     * default state that begins the program 
+     */
     case Idle:
       Serial.println("Beginning Obstacle Avoidance");
       state = ActiveNavigation;
       break;
 
+    /*
+     * Drive forward. If the Lidar sees something in the distance, adjust powers
+     * so the robot can avoid the object in the long term.
+     * If an object is too close, switch to reactive obstacle avoidance state
+     */
     case ActiveNavigation:
       Serial.println("No obstacles detected. Moving forward");
       powerAdjustment = 0;
@@ -88,7 +94,11 @@ void loop() {
       //angle > 90 turn to the right (left side triggered) 
       frontSteer.write(center + angle);
       break;
-
+      
+    /*
+     * Reactive Navigation state should be triggered when an object is too close and the
+     * robot needs to react to instantaneous obstacles in front of it. 
+     */
     case ReactiveNavigation:
       Serial.println("Side collision detected");
       if (!proximityIsClear())
@@ -145,14 +155,14 @@ void loop() {
           
           else//one side is clearly longer more open than the other
           { 
-            if (getMode(rightDist, prevRightDist) < dangerZone && getMode(rightDist,prevRightDist) != 0)
+            if (getMode(rightDist, prevRightDist) < dangerZone && getMode(rightDist,prevRightDist) != 0)//change power based on which side is within the dangerZone
             {
               powerError = dangerZone - getMode(midDist, prevMidDist) ;
               angleError = dangerZone - getMode(rightDist, prevRightDist);
               netAngleError += angleError * cos(2.0944);
               netPowerError += powerError * sin(2.0944);
             }
-            if (getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) //change power based on which side is within the dangerZone
+            if (getMode(leftDist, prevLeftDist) < dangerZone && getMode(leftDist,prevLeftDist) != 0) 
             {
               powerError = dangerZone - getMode(midDist, prevMidDist);
               angleError = dangerZone - getMode(leftDist, prevLeftDist);
@@ -191,9 +201,15 @@ void loop() {
       //angle > 90 turn to the right (left side triggered) 
       frontSteer.write(center + angle);
       break;
-      
+
+    /*
+     * The Stop case is responsible for stopping the robot if it is too close to an obstacle
+     * After stopping, this state will switch to another state given the appropriate conditions
+     * ==============IN PROGRESS===================
+     */
     case Stop:
       Serial.println("Imminent collision. Stopping");
+      
       drive.write(0);
       delay(1000);
       drive.write(90);
@@ -202,6 +218,11 @@ void loop() {
       //state = Straight;
       break;
 
+    /*
+     * Reverse state causes the robot to reverse in order to get space between an object in front of it 
+     * Robot backs up for a predefined distance that will give it space to make adjustments 
+     * or until the robot sees something within proximity of its rear sensor 
+     */
     case Reverse:
       Serial.println("Creating Space");
       frontSteer.write(center);
@@ -233,30 +254,14 @@ void loop() {
   
   //turnServo();
   //lidarProcess();
-  //Serial.println(farthestLidarValue.lidarDistX);
-  //Serial.println(farthestLidarValue.lidarDist);
-  //Serial.println(currentLidarData.lidarDistX);
-  
-  /*Serial.println(leftDist);
-  Serial.println(rightDist);
-  Serial.println(leftMidDist);
-  Serial.println(rightMidDist);
-  Serial.println(midDist);
-  Serial.println(rearDist);*/
+
+  //printSensorValues();
   
   powerAdjustment = 0;
   netAngleError = 0;
   angle =0;
   
-  prevLeftDist = leftDist; // old dist = current distance
-  prevRightDist = rightDist;
-  prevRightMidDist = rightMidDist;
-  prevLeftMidDist = leftMidDist;
-  prevMidDist = midDist;
-  prevRearDist = rearDist;
-  //currentLidarData.lidarDist = lidar.distance();
-  //currentLidarData.lidarDistY = abs(currentLidarData.lidarDist * sin(currentLidarData.lidarAngle));
-  //currentLidarData.lidarDistX = currentLidarData.lidarDist * cos(currentLidarData.lidarAngle);
+  updatePrevSensorValues();
   delay(10);
 }
 
@@ -316,7 +321,42 @@ bool proximityIsClear()
     return true;
   }
 }
+void updateCurrentSensorValues()
+{
+  //sixDOF.getEuler(angles);//radians
+  leftDist = getSonarDistance(left);
+  rightDist = getSonarDistance(right);
+  rightMidDist = getSonarDistance(rightMid);
+  leftMidDist = getSonarDistance(leftMid);
+  midDist = getSonarDistance(mid);
+  rearDist = getSonarDistance(rear);
+  //currentLidarData.lidarDist = lidar.distance();
+  //currentLidarData.lidarDistY = abs(currentLidarData.lidarDist * sin(currentLidarData.lidarAngle));
+  //currentLidarData.lidarDistX = currentLidarData.lidarDist * cos(currentLidarData.lidarAngle);
+}
 
+void updatePrevSensorValues()
+{
+  prevLeftDist = leftDist; // old dist = current distance
+  prevRightDist = rightDist;
+  prevRightMidDist = rightMidDist;
+  prevLeftMidDist = leftMidDist;
+  prevMidDist = midDist;
+  prevRearDist = rearDist;
+}
+void printSensorValues()
+{
+  //Serial.println(farthestLidarValue.lidarDistX);
+  //Serial.println(farthestLidarValue.lidarDist);
+  //Serial.println(currentLidarData.lidarDistX);
+  
+  /*Serial.println(leftDist);
+  Serial.println(rightDist);
+  Serial.println(leftMidDist);
+  Serial.println(rightMidDist);
+  Serial.println(midDist);
+  Serial.println(rearDist);*/
+}
 void turnServo()
 {
   if (currentLidarData.lidarAngle > minAngle+sweepDegrees)
