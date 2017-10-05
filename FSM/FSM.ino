@@ -25,13 +25,23 @@ void setup()
   //lidarSteer.attach(12);
   //lidar.begin(0, true);
   //lidar.configure(0);
-
+  //calibrate the IMU for YAW to minimize drift
+  sixDOF.init(); 
+  float prevAngles[3];
+  prevAngles[3] = angles[3];
+  for(int i = 0;i<10;i++)
+  {
+    driftError += angles[3] - prevAngles[3];
+    delay(100);
+  }
+  driftError = driftError/10;
+  
   //Initialize Sensors and Servos
   frontSteer.write(center);
   drive.write(90);
   //lidarSteer.write(currentLidarData.lidarAngle);
   delay(2000);
-  //sixDOF.init();
+  
 }
 
 
@@ -87,12 +97,8 @@ void loop() {
         }
       }*/
 
-      netAngleError = netAngleError < -45 ? -45 : netAngleError;
-      netAngleError = netAngleError > 45 ? 45 : netAngleError;
-      angle = (int)(angleKp * netAngleError);
-      //angle < 90 turn to the left (right side triggered)
-      //angle > 90 turn to the right (left side triggered) 
-      frontSteer.write(center + angle);
+      
+      turnSteerServo();
       break;
       
     /*
@@ -194,12 +200,9 @@ void loop() {
       {
        // state = Stop;
       }
-      netAngleError = netAngleError < -45 ? -45 : netAngleError;
-      netAngleError = netAngleError > 45 ? 45 : netAngleError;
-      angle = (int)(angleKp * netAngleError);
-      //angle < 90 turn to the left (right side triggered)
-      //angle > 90 turn to the right (left side triggered) 
-      frontSteer.write(center + angle);
+
+      turnSteerServo();
+      
       break;
 
     /*
@@ -259,7 +262,7 @@ void loop() {
   
   powerAdjustment = 0;
   netAngleError = 0;
-  angle =0;
+  angle = 0;
   
   updatePrevSensorValues();
   delay(10);
@@ -269,10 +272,17 @@ float getAverage(int a, int b)
 {
   return (a + b) / 2;
 }
+
 float getMode(int a, int b)
 {
   return a > b ? (float)a : (float)b;
 }
+
+float degToRad(float deg)
+{
+  return (deg*3.14)/180;
+}
+
 float getSonarDistance(int sonarPin)
 {
   return (getPing(sonarPin) * .034) / 2;
@@ -323,7 +333,12 @@ bool proximityIsClear()
 }
 void updateCurrentSensorValues()
 {
-  //sixDOF.getEuler(angles);//radians
+  sixDOF.getEuler(angles);//get the angle from the IMU in degrees 
+  //modify Euler angles so they account for drift
+  angles[0] = degToRad(angles[0]-(float)driftError);
+  angles[1] = degToRad(angles[1]-(float)driftError);
+  angles[2] = degToRad(angles[2]-(float)driftError);
+  
   leftDist = getSonarDistance(left);
   rightDist = getSonarDistance(right);
   rightMidDist = getSonarDistance(rightMid);
@@ -357,7 +372,7 @@ void printSensorValues()
   Serial.println(midDist);
   Serial.println(rearDist);*/
 }
-void turnServo()
+void turnLidarServo()
 {
   if (currentLidarData.lidarAngle > minAngle+sweepDegrees)
   {
@@ -370,6 +385,19 @@ void turnServo()
   currentLidarData.lidarAngle += lidarSpeed;
   lidarSteer.write(currentLidarData.lidarAngle);
 }
+
+void turnSteerServo()
+{ 
+      
+      netAngleError -= cos(angles[0]);//for every degree off center, the steering system defaults to correcting in the opposite direction 
+      netAngleError = netAngleError < -45 ? -45 : netAngleError;
+      netAngleError = netAngleError > 45 ? 45 : netAngleError;
+      angle = (int)(angleKp * netAngleError);
+      //angle < 90 turn to the left (right side triggered)
+      //angle > 90 turn to the right (left side triggered) 
+      frontSteer.write(center + angle);
+}
+
 void lidarProcess()
 {
   if(currentLidarData.lidarAngle > minAngle)

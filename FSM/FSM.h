@@ -25,6 +25,7 @@ typedef struct
 
 float getAverage(int a,int b);//get the average value of two inputs
 float getMode(int a, int b);//get the mode of two inputs
+float degToRad(float deg);
 float getSonarDistance(int sonarPin);//get the distance from a sonar sensor
 float getSonarDistance(Sonar sonar);
 bool compareSonar(float dist1, float dist2);//comapre two sonar distances 
@@ -86,6 +87,9 @@ bool leftTrigger = false;
 bool rightTrigger = false;
 const int sonarThreshold = 10;
 FreeSixIMU sixDOF = FreeSixIMU();
+float angles[3]; // yaw pitch roll
+double driftError;
+
 Servo drive, frontSteer, lidarSteer;
 
 
